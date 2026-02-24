@@ -54,7 +54,10 @@ class Win(QWidget):
         body_layout.addLayout(top)
         body_layout.addWidget(self.progress)
         body_layout.addWidget(card)
+        body_layout.setStretchFactor(card, 1)
         content_layout.addWidget(body)
+
+        self.setMinimumSize(640, 460)
 
         self.setStyleSheet("""
             #MainContainer { background-color: #f3f4f6; border-radius: 12px; border: 1px solid #e5e7eb; }
@@ -72,36 +75,30 @@ class Win(QWidget):
         self.btn.clicked.connect(self.start)
         self.input.returnPressed.connect(self.start)
 
+    def _insert_new_line_if_needed(self, cursor):
+        if self.log.toPlainText():
+            cursor.insertBlock()
+
     def add_log(self, msg):
         cursor = self.log.textCursor()
         cursor.movePosition(QTextCursor.End)
 
-        # 处理需要原地更新的日志 (如: 正在下载 1/4)
         if msg.startswith("LOG_UPDATE:"):
             display_msg = msg.replace("LOG_UPDATE:", "")
 
             if self.last_was_progress:
-                # 只有上一条也是 LOG_UPDATE 时，才删除上一行进行覆盖
                 cursor.select(QTextCursor.BlockUnderCursor)
                 cursor.removeSelectedText()
             else:
-                # 如果前一条是普通文本，现在开始显示进度，先换个行
-                if not self.log.toPlainText().endswith('\n') and self.log.toPlainText():
-                    cursor.insertBlock()
+                self._insert_new_line_if_needed(cursor)
 
             cursor.insertText(display_msg)
             self.last_was_progress = True
-
-        # 处理普通日志 (如: 开始解析、发现图片、下载完成)
         else:
-            # 如果上一条是进度条，或者是新任务开始，确保换行
-            if self.last_was_progress or self.log.toPlainText():
-                cursor.insertBlock()
-
+            self._insert_new_line_if_needed(cursor)
             cursor.insertText(msg)
             self.last_was_progress = False
 
-        # 滚动到底部
         self.log.setTextCursor(cursor)
         self.log.ensureCursorVisible()
 
@@ -123,6 +120,7 @@ class Win(QWidget):
             cursor.insertBlock()
 
         cursor.insertText(f"──────── 任务 {self.task_index} ────────")
+        cursor.insertBlock()
         cursor.insertBlock()
 
         self.log.setTextCursor(cursor)
